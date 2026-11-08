@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ScanController</title>
+  <meta name="description" content="ScanController — Analog Precision for Manga & Webtoons. L'auto-scroll piloté à la gâchette analogique.">
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #09090B;
+      --bg-2: #0E0E11;
+      --glass: rgba(18, 18, 23, 0.78);
+      --line: rgba(255, 255, 255, 0.08);
+      --line-strong: rgba(255, 255, 255, 0.14);
+      --text: #F4F4F5;
+      --muted: #A1A1AA;
+      --dim: #71717A;
+      --crimson: #E11D48;
+      --neon: #FF2E63;
+      --grad: linear-gradient(135deg, #FF2E63 0%, #E11D48 100%);
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --radius: 24px;
+      --gutter: clamp(16px, 4vw, 40px);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.6 "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+    img { display: block; max-width: 100%; }
+    .wrap { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 var(--gutter); }
+    .serif { font-family: "Instrument Serif", Georgia, serif; font-style: italic; font-weight: 400; letter-spacing: -0.01em; }
+    .grad-text { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+    /* ---------- Fond : lueurs + trame manga ---------- */
+    .backdrop { position: absolute; inset: 0 0 auto; height: 1100px; pointer-events: none; z-index: 0; overflow: hidden; }
+    .backdrop::before {
+      content: ""; position: absolute; inset: 0;
+      background:
+        radial-gradient(40% 50% at 78% 18%, rgba(225, 29, 72, 0.28), transparent 70%),
+        radial-gradient(35% 40% at 12% 8%, rgba(255, 46, 99, 0.10), transparent 70%);
+    }
+    .backdrop::after {
+      content: ""; position: absolute; inset: 0;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1.4px);
+      background-size: 7px 7px;
+      -webkit-mask-image: radial-gradient(60% 55% at 70% 25%, #000 0%, transparent 75%);
+      mask-image: radial-gradient(60% 55% at 70% 25%, #000 0%, transparent 75%);
+    }
+
+    /* ---------- Nav ---------- */
+    nav {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(9, 9, 11, 0.6);
+      backdrop-filter: blur(16px) saturate(1.3);
+      -webkit-backdrop-filter: blur(16px) saturate(1.3);
+      border-bottom: 1px solid var(--line);
+    }
+    nav .wrap { display: flex; align-items: center; gap: 28px; height: 64px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.02em; font-size: 16px; }
+    .brand img { width: 30px; height: 30px; border-radius: 8px; }
+    .nav-links { display: flex; gap: 24px; margin-left: auto; font-size: 14px; color: var(--muted); }
+    .nav-links a:hover { color: var(--text); }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      height: 42px; padding: 0 18px; border-radius: 12px;
+      font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; border: 0;
+      transition: transform 0.25s var(--ease), filter 0.25s var(--ease), background 0.25s var(--ease);
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:focus-visible { outline: 2px solid var(--neon); outline-offset: 3px; }
+    .btn-primary { background: var(--grad); color: #fff; box-shadow: 0 14px 30px -12px rgba(255, 46, 99, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.22); }
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-ghost { background: rgba(255, 255, 255, 0.05); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); }
+    .btn-ghost:hover { background: rgba(255, 255, 255, 0.09); }
+    nav .btn { height: 36px; padding: 0 14px; font-size: 13px; }
+
+    /* ---------- Hero ---------- */
+    .hero { position: relative; z-index: 1; padding: 72px 0 96px; }
+    .hero .wrap { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 56px; align-items: center; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      height: 30px; padding: 0 12px 0 6px; border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line);
+      font-size: 12.5px; color: var(--muted);
+    }
+    .eyebrow b { padding: 2px 8px; border-radius: 999px; background: var(--grad); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; }
+    h1 {
+      margin: 22px 0 18px;
+      font-size: clamp(42px, 5.6vw, 72px);
+      line-height: 0.98;
+      letter-spacing: -0.045em;
+      font-weight: 800;
+    }
+    h1 .serif { font-weight: 400; letter-spacing: -0.02em; }
+    .lede { margin: 0 0 30px; max-width: 480px; font-size: 17.5px; color: var(--muted); }
+    .lede b { color: var(--text); font-weight: 600; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+    .devices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 34px; }
+    .device {
+      display: inline-flex; align-items: center; gap: 8px;
+      height: 34px; padding: 0 12px 0 9px; border-radius: 10px;
+      background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line);
+      font-size: 13px; color: var(--muted);
+    }
+    .device svg { width: 18px; height: 18px; color: var(--neon); }
+    .ico { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ---------- Lecteur immersif ---------- */
+    .stage-wrap { position: relative; }
+    .stage {
+      position: relative;
+      border-radius: var(--radius);
+      background: var(--bg-2);
+      border: 1px solid var(--line-strong);
+      box-shadow: 0 60px 120px -40px rgba(225, 29, 72, 0.35), 0 40px 80px -30px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+      isolation: isolate;
+    }
+    .stage-bar {
+      display: flex; align-items: center; gap: 12px;
+      height: 46px; padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(18, 18, 23, 0.9);
+    }
+    .lights { display: flex; gap: 7px; }
+    .lights i { width: 11px; height: 11px; border-radius: 50%; background: #27272A; }
+    .address {
+      flex: 1; display: flex; align-items: center; gap: 8px; justify-content: center;
+      height: 28px; max-width: 360px; margin: 0 auto; border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line);
+      font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden;
+    }
+    .address svg { width: 12px; height: 12px; flex: 0 0 auto; }
+    .live-chip {
+      display: inline-flex; align-items: center; gap: 7px;
+      height: 26px; padding: 0 10px; border-radius: 999px;
+      font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer;
+      color: var(--text); background: rgba(225, 29, 72, 0.14); border: 1px solid rgba(255, 46, 99, 0.35);
+      white-space: nowrap;
+    }
+    .live-chip i { width: 6px; height: 6px; border-radius: 50%; background: var(--neon); box-shadow: 0 0 8px var(--neon); animation: blink 1.6s ease-in-out infinite; }
+    .live-chip[data-mode="manual"] { background: rgba(255, 255, 255, 0.05); border-color: var(--line-strong); }
+    .live-chip[data-mode="manual"] i { background: #22C55E; box-shadow: 0 0 8px #22C55E; }
+    @keyframes blink { 50% { opacity: 0.35; } }
+
+    .reader {
+      position: relative;
+      height: 640px;
+      overflow-y: auto;
+      scrollbar-width: none;
+      background: #050506;
+      transition: opacity 0.45s var(--ease);
+    }
+    .reader::-webkit-scrollbar { display: none; }
+    .reader[data-rewind] { opacity: 0; }
+    .strip { width: min(100%, 560px); margin: 0 auto; display: flex; flex-direction: column; gap: 10px; padding: 0 0 120px; }
+    .strip img { width: 100%; height: auto; background: #111; }
+    .crop { width: 100%; object-fit: cover; }
+    .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .neg { filter: invert(1) contrast(1.1); }
+    .chapter {
+      position: relative; padding: 72px 28px 64px; text-align: center; overflow: hidden;
+      background: radial-gradient(70% 80% at 50% 0%, rgba(225, 29, 72, 0.22), transparent 70%), #09090B;
+    }
+    .chapter::after {
+      content: ""; position: absolute; inset: 0;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1.4px); background-size: 6px 6px;
+      -webkit-mask-image: linear-gradient(#000, transparent); mask-image: linear-gradient(#000, transparent);
+    }
+    .chapter small { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.3em; color: var(--neon); text-transform: uppercase; }
+    .chapter h3 { margin: 12px 0 8px; font-size: 40px; line-height: 1; letter-spacing: -0.04em; font-weight: 800; }
+    .chapter p { margin: 0; font-size: 13px; color: var(--muted); }
+    .end-card { padding: 56px 28px; text-align: center; background: #09090B; border-top: 1px solid var(--line); }
+    .end-card img { width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 14px; }
+    .end-card b { display: block; font-size: 20px; letter-spacing: -0.02em; }
+    .end-card span { font-size: 13px; color: var(--muted); }
+
+    /* ---------- Telemetrie ---------- */
+    .telemetry {
+      position: absolute; left: -44px; bottom: 56px; z-index: 5;
+      width: 236px; padding: 16px;
+      border-radius: 20px;
+      background: var(--glass);
+      backdrop-filter: blur(16px) saturate(1.3);
+      -webkit-backdrop-filter: blur(16px) saturate(1.3);
+      border: 1px solid var(--line);
+      box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.85);
+    }
+    .tel-top { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+    .tel-speed { display: flex; align-items: baseline; gap: 5px; margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
+    .tel-speed b { font-size: 34px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+    .tel-speed span { font-size: 12px; color: var(--dim); }
+    .tel-spark { display: block; width: 100%; height: 44px; margin: 8px 0 12px; }
+    .tel-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .tel-row b { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+    .tel-bar { height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+    .tel-bar i { display: block; height: 100%; width: 0%; border-radius: 999px; background: var(--grad); box-shadow: 0 0 12px rgba(255, 46, 99, 0.7); }
+
+    /* ---------- Bandeau chiffres ---------- */
+    .stats { position: relative; z-index: 1; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, 0.015); }
+    .stats .wrap { display: grid; grid-template-columns: repeat(4, 1fr); }
+    .stat { padding: 28px 24px; border-left: 1px solid var(--line); }
+    .stat:first-child { border-left: 0; padding-left: 0; }
+    .stat b { display: block; font-size: 28px; font-weight: 800; letter-spacing: -0.04em; }
+    .stat span { font-size: 13.5px; color: var(--muted); }
+
+    /* ---------- Sections ---------- */
+    section.block { position: relative; z-index: 1; padding: 112px 0 0; }
+    .kicker { font-size: 12px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: var(--neon); }
+    h2 { margin: 12px 0 14px; font-size: clamp(32px, 4vw, 48px); line-height: 1.04; letter-spacing: -0.04em; font-weight: 800; max-width: 760px; }
+    .sub { margin: 0 0 48px; max-width: 600px; color: var(--muted); font-size: 17px; }
+
+    .features { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .feature {
+      padding: 24px; border-radius: 20px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01));
+      border: 1px solid var(--line);
+      transition: border-color 0.3s var(--ease), transform 0.4s var(--ease);
+    }
+    .feature:hover { border-color: rgba(255, 46, 99, 0.35); transform: translateY(-3px); }
+    .feature-visual {
+      height: 120px; margin-bottom: 22px; border-radius: 14px;
+      background: rgba(0, 0, 0, 0.35); border: 1px solid var(--line);
+      display: grid; place-items: center; overflow: hidden;
+    }
+    .feature h3 { margin: 0 0 6px; font-size: 17px; letter-spacing: -0.02em; }
+    .feature p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.55; }
+
+    /* visuels de cartes */
+    .v-curve svg { width: 85%; height: 90px; }
+    .v-devices { display: flex; gap: 10px; }
+    .v-devices span { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 13px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); color: var(--muted); }
+    .v-devices span:first-child { background: var(--grad); color: #fff; border-color: transparent; box-shadow: 0 10px 24px -8px rgba(255, 46, 99, 0.7); }
+    .v-devices svg { width: 24px; height: 24px; }
+    .v-pill { display: inline-flex; align-items: center; gap: 9px; height: 40px; padding: 0 14px 0 4px; border-radius: 999px; background: var(--glass); border: 1px solid rgba(225, 29, 72, 0.32); font-variant-numeric: tabular-nums; }
+    .v-pill .ring { width: 32px; height: 32px; border-radius: 50%; background: conic-gradient(var(--neon) 0 62%, rgba(255, 255, 255, 0.08) 62% 100%); -webkit-mask: radial-gradient(circle, transparent 11.5px, #000 12.5px); mask: radial-gradient(circle, transparent 11.5px, #000 12.5px); }
+    .v-pill b { font-size: 15px; } .v-pill small { font-size: 10px; color: var(--dim); }
+    .v-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--neon); box-shadow: 0 0 10px var(--neon); }
+    .v-damp { width: 85%; height: 90px; }
+
+    /* ---------- Commandes ---------- */
+    .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .control-card { padding: 26px; border-radius: 20px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--line); }
+    .control-head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .control-head span { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: rgba(255, 46, 99, 0.12); color: var(--neon); }
+    .control-head svg { width: 24px; height: 24px; }
+    .control-head b { font-size: 17px; letter-spacing: -0.02em; }
+    .control-head small { display: block; font-size: 12.5px; color: var(--dim); font-weight: 500; }
+    .map { display: grid; grid-template-columns: auto 1fr; gap: 10px 14px; margin: 0; font-size: 14px; }
+    .map dt { justify-self: start; }
+    .map dd { margin: 0; color: var(--muted); }
+    kbd {
+      display: inline-block; min-width: 26px; text-align: center;
+      font: 600 12px/1 "Inter", system-ui, sans-serif;
+      padding: 5px 8px; border-radius: 7px;
+      background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line-strong); border-bottom-width: 2px;
+      color: var(--text);
+    }
+
+    /* ---------- Installation ---------- */
+    .install { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; counter-reset: step; }
+    .step { position: relative; padding: 26px; border-radius: 20px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); }
+    .step::before {
+      counter-increment: step; content: "0" counter(step);
+      display: block; margin-bottom: 16px; font-size: 13px; font-weight: 700; letter-spacing: 0.1em;
+      color: var(--neon);
+    }
+    .step > b { display: block; font-size: 17px; margin-bottom: 6px; letter-spacing: -0.02em; }
+    .step p { margin: 0; font-size: 14px; color: var(--muted); }
+    .step code { font: 500 12.5px/1 ui-monospace, "JetBrains Mono", Consolas, monospace; padding: 3px 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.06); color: var(--text); }
+
+    .final {
+      position: relative; margin-top: 112px; padding: 72px var(--gutter); border-radius: 28px; text-align: center; overflow: hidden;
+      background: radial-gradient(60% 90% at 50% 0%, rgba(225, 29, 72, 0.3), transparent 70%), var(--bg-2);
+      border: 1px solid var(--line);
+    }
+    .final img { width: 72px; height: 72px; margin: 0 auto 24px; border-radius: 18px; box-shadow: 0 20px 50px -14px rgba(255, 46, 99, 0.65); }
+    .final h2 { margin: 0 auto 12px; }
+    .final p { margin: 0 auto 28px; max-width: 520px; color: var(--muted); }
+
+    footer { position: relative; z-index: 1; padding: 48px 0; color: var(--dim); font-size: 13px; }
+    footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 28px; }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 1080px) {
+      .features { grid-template-columns: repeat(2, 1fr); }
+      .telemetry { left: -16px; }
+    }
+    @media (max-width: 960px) {
+      .hero { padding-top: 48px; }
+      .hero .wrap { grid-template-columns: 1fr; gap: 48px; }
+      .telemetry { position: relative; left: auto; bottom: auto; width: auto; margin-top: 16px; }
+      .stats .wrap { grid-template-columns: repeat(2, 1fr); }
+      .stat:nth-child(3) { border-left: 0; padding-left: 0; }
+      .stat:nth-child(n+3) { border-top: 1px solid var(--line); }
+      .controls, .install { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      nav .btn { margin-left: auto; }
+    }
+    @media (max-width: 560px) {
+      .features { grid-template-columns: 1fr; }
+      .reader { height: 72vh; }
+      .address { display: none; }
+      .stage-bar { justify-content: space-between; }
+      .stat { padding: 20px 12px; }
+      .stat b { font-size: 22px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation: none !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <!-- sprites d'icones -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <path id="pad-body" d="M7 6.5h10c2.5 0 4.2 1.7 4.7 4.2l1 5.4c.4 2-1 3.7-2.8 3.7-1.1 0-2-.6-2.6-1.6L16.1 16H7.9l-1.2 2.2c-.6 1-1.5 1.6-2.6 1.6-1.8 0-3.2-1.7-2.8-3.7l1-5.4C2.8 8.2 4.5 6.5 7 6.5z"/>
+      <symbol id="i-dualsense" viewBox="0 0 24 24"><use href="#pad-body"/><rect x="9.4" y="8.6" width="5.2" height="3.2" rx="1"/><circle cx="9" cy="13.6" r="1.1"/><circle cx="15" cy="13.6" r="1.1"/></symbol>
+      <symbol id="i-xbox" viewBox="0 0 24 24"><use href="#pad-body"/><circle cx="7.4" cy="10.6" r="1.3"/><circle cx="14.6" cy="13.8" r="1.1"/><circle cx="16.8" cy="9.2" r=".6"/><circle cx="18.4" cy="10.8" r=".6"/></symbol>
+      <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.5" y="6.5" width="19" height="11" rx="2.4"/><path d="M6 10h.01M9 10h.01M12 10h.01M15 10h.01M18 10h.01M8 14h8"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="backdrop" aria-hidden="true"></div>
+
+  <nav>
+    <div class="wrap">
+      <a class="brand" href="#top"><img src="assets/logo.svg" alt="">ScanController</a>
+      <div class="nav-links">
+        <a href="#features">Fonctionnalités</a>
+        <a href="#controls">Commandes</a>
+        <a href="#install">Installation</a>
+      </div>
+      <a class="btn btn-primary" href="#install">Ajouter à Chrome</a>
+    </div>
+  </nav>
+
+  <header class="hero" id="top">
+    <div class="wrap">
+      <div>
+        <span class="eyebrow"><b>v1.0</b>Extension Chrome · Plug &amp; Play</span>
+        <h1>Analog Precision <span class="serif grad-text">for Manga &amp; Webtoons.</span></h1>
+        <p class="lede">
+          Posez la souris. <b>ScanController</b> fait défiler vos scans à vitesse de croisière,
+          et votre gâchette <b>R2</b> dose le freinage au millimètre — comme une pédale, pas comme un interrupteur.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#install">Installer gratuitement</a>
+          <a class="btn btn-ghost" href="#features">Comment ça marche</a>
+        </div>
+        <div class="devices" aria-label="Entrées compatibles">
+          <span class="device"><svg class="ico"><use href="#i-dualsense"/></svg>DualSense</span>
+          <span class="device"><svg class="ico"><use href="#i-xbox"/></svg>Xbox</span>
+          <span class="device"><svg class="ico"><use href="#i-keyboard"/></svg>Clavier</span>
+        </div>
+      </div>
+
+      <div class="stage-wrap">
+        <div class="stage" id="stage">
+          <div class="stage-bar">
+            <div class="lights" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="address"><svg class="ico"><use href="#i-lock"/></svg>lecteur · chapitre 01</div>
+            <button class="live-chip" id="liveChip" type="button" data-mode="demo"><i></i><span>Démo live · Prendre la main</span></button>
+          </div>
+          <div class="reader" id="reader" tabindex="-1" aria-label="Lecteur de scan">
+            <div class="strip">
+              <div class="chapter">
+                <small>Chapitre 01</small>
+                <h3>Mode lecture</h3>
+                <p>Défilement continu · freinage analogique</p>
+              </div>
+              <img src="assets/kaneki-panel.webp" onerror="this.onerror=null;this.src='assets/demo-panel.svg'" alt="Planche de manga en noir et blanc" width="860" height="1234">
+              <img class="crop" src="assets/kaneki-panel.webp" onerror="this.onerror=null;this.src='assets/demo-panel.svg'" alt="" style="height:300px;object-position:50% 42%">
+              <div class="duo">
+                <img class="crop" src="assets/kaneki-panel.webp" onerror="this.onerror=null;this.src='assets/demo-panel.svg'" alt="" style="height:340px;object-position:96% 18%">
+                <img class="crop" src="assets/kaneki-panel.webp" onerror="this.onerror=null;this.src='assets/demo-panel.svg'" alt="" style="height:340px;object-position:46% 74%">
+              </div>
+              <img class="neg" src="assets/kaneki-panel.webp" onerror="this.onerror=null;this.src='assets/demo-panel.svg'" alt="" width="860" height="1234">
+              <img class="crop" src="assets/kaneki-panel.webp" onerror="this.onerror=null;this.src='assets/demo-panel.svg'" alt="" style="height:240px;object-position:40% 26%">
+              <img src="assets/kaneki-panel.webp" onerror="this.onerror=null;this.src='assets/demo-panel.svg'" alt="" width="860" height="1234">
+              <div class="end-card">
+                <img src="assets/logo.svg" alt="">
+                <b>Fin du chapitre</b>
+                <span>Lu sans toucher la souris.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="telemetry" aria-label="Télémétrie en direct">
+          <div class="tel-top"><span>Télémétrie</span><span id="telDevice">—</span></div>
+          <div class="tel-speed"><b id="telSpeed">0</b><span>px/s</span></div>
+          <canvas class="tel-spark" id="telSpark" width="408" height="88"></canvas>
+          <div class="tel-row"><span>Pression frein</span><b id="telR2">0%</b></div>
+          <div class="tel-bar"><i id="telBar"></i></div>
+        </aside>
+      </div>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="wrap">
+      <div class="stat"><b>60 fps</b><span>Défilement sous-pixel</span></div>
+      <div class="stat"><b>0 conflit</b><span>HUD isolé en Shadow DOM</span></div>
+      <div class="stat"><b>3 entrées</b><span>DualSense, Xbox, Clavier</span></div>
+      <div class="stat"><b>0 dépendance</b><span>Vanilla JS, aucune collecte</span></div>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <section class="block" id="features">
+      <div class="kicker">Fonctionnalités</div>
+      <h2>Une pédale d’accélérateur <span class="serif">pour vos lectures.</span></h2>
+      <p class="sub">Tout est pensé pour disparaître pendant la lecture, et répondre instantanément quand vous en avez besoin.</p>
+      <div class="features">
+        <article class="feature">
+          <div class="feature-visual v-curve" aria-hidden="true">
+            <svg viewBox="0 0 160 90">
+              <path d="M10 80H150M10 80V10" stroke="rgba(255,255,255,.12)" fill="none"/>
+              <path d="M10 80 C 60 78, 95 60, 150 12" stroke="url(#fg)" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <defs><linearGradient id="fg" x1="0" x2="1"><stop offset="0" stop-color="#E11D48"/><stop offset="1" stop-color="#FF2E63"/></linearGradient></defs>
+              <circle cx="104" cy="52" r="5" fill="#fff" style="filter:drop-shadow(0 0 6px #FF2E63)"/>
+            </svg>
+          </div>
+          <h3>Gâchette analogique</h3>
+          <p>R2 freine en proportion exacte de sa course. Courbe de sensibilité réglable, de ferme à réactive.</p>
+        </article>
+        <article class="feature">
+          <div class="feature-visual" aria-hidden="true">
+            <div class="v-devices">
+              <span><svg class="ico"><use href="#i-dualsense"/></svg></span>
+              <span><svg class="ico"><use href="#i-xbox"/></svg></span>
+              <span><svg class="ico"><use href="#i-keyboard"/></svg></span>
+            </div>
+          </div>
+          <h3>Plug &amp; Play</h3>
+          <p>DualSense, Xbox ou clavier : détection automatique, icône et notification dès la connexion.</p>
+        </article>
+        <article class="feature">
+          <div class="feature-visual" aria-hidden="true">
+            <div class="v-pill"><span class="ring"></span><b>184</b><small>px/s</small><i></i></div>
+          </div>
+          <h3>Floating Pill</h3>
+          <p>Une capsule discrète pendant la lecture. Au survol, elle se déplie sur vos réglages rapides.</p>
+        </article>
+        <article class="feature">
+          <div class="feature-visual" aria-hidden="true">
+            <svg class="v-damp" viewBox="0 0 160 90">
+              <path d="M10 22 H52 C 78 22, 84 70, 112 70 H150" stroke="rgba(255,255,255,.18)" stroke-width="2" fill="none" stroke-dasharray="3 5"/>
+              <path d="M10 22 H52 C 70 22, 76 70, 96 70 H150" stroke="#FF2E63" stroke-width="3" fill="none" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>Freinage amorti</h3>
+          <p>Pas d’à-coups : la vitesse glisse vers sa cible. Même la barre Espace freine en douceur.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="block" id="controls">
+      <div class="kicker">Commandes</div>
+      <h2>Vos mains savent déjà <span class="serif">s’en servir.</span></h2>
+      <p class="sub">Les mêmes gestes que dans vos jeux. Aucune configuration : branchez, appuyez sur un bouton, lisez.</p>
+      <div class="controls">
+        <div class="control-card">
+          <div class="control-head"><span><svg class="ico"><use href="#i-dualsense"/></svg></span><div><b>DualSense</b><small>PS5 · PS4</small></div></div>
+          <dl class="map">
+            <dt><kbd>✕</kbd></dt><dd>Activer / pause</dd>
+            <dt><kbd>R2</kbd></dt><dd>Frein analogique</dd>
+            <dt><kbd>L2</kbd></dt><dd>Boost jusqu’à +150 %</dd>
+            <dt><kbd>D-Pad</kbd></dt><dd>Vitesse ± 15 px/s</dd>
+            <dt><kbd>Stick</kbd></dt><dd>Déplacement manuel</dd>
+          </dl>
+        </div>
+        <div class="control-card">
+          <div class="control-head"><span><svg class="ico"><use href="#i-xbox"/></svg></span><div><b>Xbox</b><small>Series · One · compatibles XInput</small></div></div>
+          <dl class="map">
+            <dt><kbd>A</kbd></dt><dd>Activer / pause</dd>
+            <dt><kbd>RT</kbd></dt><dd>Frein analogique</dd>
+            <dt><kbd>LT</kbd></dt><dd>Boost jusqu’à +150 %</dd>
+            <dt><kbd>D-Pad</kbd></dt><dd>Vitesse ± 15 px/s</dd>
+            <dt><kbd>Stick</kbd></dt><dd>Déplacement manuel</dd>
+          </dl>
+        </div>
+        <div class="control-card">
+          <div class="control-head"><span><svg class="ico"><use href="#i-keyboard"/></svg></span><div><b>Clavier</b><small>Aucune manette requise</small></div></div>
+          <dl class="map">
+            <dt><kbd>Alt</kbd> <kbd>S</kbd></dt><dd>Activer / pause</dd>
+            <dt><kbd>Espace</kbd></dt><dd>Frein progressif amorti</dd>
+            <dt><kbd>Clic</kbd></dt><dd>Sur la pilule : activer / pause</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="install">
+      <div class="kicker">Installation</div>
+      <h2>Prêt en <span class="serif">trente secondes.</span></h2>
+      <p class="sub">ScanController fonctionne sur tous les sites de scans, sans compte ni autorisation intrusive.</p>
+      <div class="install">
+        <div class="step"><b>Ouvrez les extensions</b><p>Tapez <code>chrome://extensions</code> et activez le <b>Mode développeur</b>.</p></div>
+        <div class="step"><b>Chargez ScanController</b><p>« Charger l’extension non empaquetée », puis choisissez ce dossier.</p></div>
+        <div class="step"><b>Lisez</b><p>Ouvrez un chapitre, appuyez sur <kbd>✕</kbd> ou <kbd>Alt</kbd> <kbd>S</kbd>. La pilule s’allume.</p></div>
+      </div>
+
+      <div class="final">
+        <img src="assets/logo.svg" alt="">
+        <h2>Lisez comme vous jouez.</h2>
+        <p>Analog Precision for Manga &amp; Webtoons. Gratuit, léger, sans collecte de données.</p>
+        <a class="btn btn-primary" href="#top">Essayer la démo</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>© 2026 ScanController</span>
+      <span>Analog Precision for Manga &amp; Webtoons</span>
+    </div>
+  </footer>
+
+  <!-- ScanController : le vrai moteur + HUD de l'extension, monte dans le lecteur -->
+  <script>
+    window.ScanControllerConfig = {
+      scroller: document.getElementById('reader'),
+      mount: document.getElementById('stage'),
+      styleHref: 'styles.css',
+      api: true
+    };
+  </script>
+  <script src="content.js"></script>
+  <script>
+  (() => {
+    'use strict';
+    const SC = window.ScanController;
+    if (!SC) return; // l'extension installee a pris la main sur cette page
+
+    const reader = document.getElementById('reader');
+    const chip = document.getElementById('liveChip');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /* ---------- Demo scenarisee (pour /brag et la vitrine) ---------- */
+    let demo = !reduced;
+    const t0 = performance.now();
+    const smooth = (x) => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+    // pression de gachette : montee, maintien, relachement
+    const squeeze = (t, start, up, hold, down, peak) => {
+      const a = t - start;
+      if (a < 0) return 0;
+      if (a < up) return peak * smooth(a / up);
+      if (a < up + hold) return peak;
+      if (a < up + hold + down) return peak * (1 - smooth((a - up - hold) / down));
+      return 0;
+    };
+
+    const CYCLE = 15;
+    let expanded = false;
+    let introDone = false;
+
+    function demoTick(now) {
+      if (!demo) return;
+      const t = (now - t0) / 1000;
+      if (!introDone && t > 0.5) { SC.setEnabled(true); }
+      if (!introDone && t > 1.3) { SC.setVirtual({ device: 'dualsense', trigger: 0 }); introDone = true; }
+      if (t > 3) {
+        const c = (t - 3) % CYCLE;
+        const trig =
+          squeeze(c, 0.6, 0.9, 0.9, 1.0, 0.72) +   // freinage dose
+          squeeze(c, 6.2, 0.7, 0.6, 0.9, 0.45) +   // pendant que le panneau est ouvert
+          squeeze(c, 10.6, 0.5, 1.1, 1.2, 1.0);    // arret complet puis reprise
+        SC.setVirtual({ trigger: Math.min(1, trig) });
+        const open = c > 4.6 && c < 9.6;
+        if (open !== expanded) { expanded = open; SC.expand(open); }
+      }
+    }
+
+    function takeOver() {
+      if (!demo) return;
+      demo = false;
+      SC.setVirtual(null);
+      SC.expand(false);
+      SC.toast('keyboard', 'À vous de jouer', 'Espace pour freiner · Alt + S pour ON / OFF');
+      chip.dataset.mode = 'manual';
+      chip.querySelector('span').textContent = 'Contrôle manuel';
+    }
+    chip.addEventListener('click', () => {
+      if (demo) takeOver();
+      else SC.toggle();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || (e.altKey && e.code === 'KeyS')) takeOver();
+    }, true);
+    window.addEventListener('gamepadconnected', takeOver);
+    if (reduced) { chip.dataset.mode = 'manual'; chip.querySelector('span').textContent = 'Contrôle manuel'; }
+
+    /* ---------- Boucle du lecteur : retour en haut en fondu ---------- */
+    let rewinding = false;
+    function loopReader() {
+      if (rewinding) return;
+      if (reader.scrollTop + reader.clientHeight >= reader.scrollHeight - 2 && SC.getState().enabled) {
+        rewinding = true;
+        reader.dataset.rewind = '';
+        setTimeout(() => {
+          reader.scrollTop = 0;
+          delete reader.dataset.rewind;
+          setTimeout(() => { rewinding = false; }, 500);
+        }, 480);
+      }
+    }
+
+    /* ---------- Telemetrie ---------- */
+    const el = {
+      speed: document.getElementById('telSpeed'),
+      r2: document.getElementById('telR2'),
+      bar: document.getElementById('telBar'),
+      dev: document.getElementById('telDevice'),
+      spark: document.getElementById('telSpark')
+    };
+    const ctx = el.spark.getContext('2d');
+    const hist = new Array(120).fill(0);
+    let lastSample = 0;
+
+    function drawSpark() {
+      const w = el.spark.width, h = el.spark.height;
+      ctx.clearRect(0, 0, w, h);
+      const max = Math.max(200, ...hist) * 1.1;
+      const pts = hist.map((v, i) => [i / (hist.length - 1) * w, h - 4 - (v / max) * (h - 8)]);
+      const fill = ctx.createLinearGradient(0, 0, 0, h);
+      fill.addColorStop(0, 'rgba(255,46,99,0.35)');
+      fill.addColorStop(1, 'rgba(255,46,99,0)');
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+      ctx.fillStyle = fill; ctx.fill();
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.strokeStyle = '#FF2E63'; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.stroke();
+    }
+
+    function tick(now) {
+      requestAnimationFrame(tick);
+      demoTick(now);
+      loopReader();
+      const s = SC.getState();
+      el.speed.textContent = s.speed;
+      const press = s.device === 'keyboard' ? s.brake : s.rawTrigger;
+      el.r2.textContent = Math.round(press * 100) + '%';
+      el.bar.style.width = (press * 100).toFixed(1) + '%';
+      el.dev.textContent = s.deviceName;
+      if (now - lastSample > 50) {
+        lastSample = now;
+        hist.push(s.speed); hist.shift();
+        drawSpark();
+      }
+    }
+    requestAnimationFrame(tick);
+  })();
+  </script>
+</body>
+</html>

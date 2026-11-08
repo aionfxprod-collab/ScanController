@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ScanController</title>
+  <style>
+    :root {
+      --bg: #09090B;
+      --glass: rgba(18, 18, 23, 0.78);
+      --line: rgba(255, 255, 255, 0.08);
+      --line-strong: rgba(255, 255, 255, 0.14);
+      --text: #F4F4F5;
+      --muted: #A1A1AA;
+      --dim: #71717A;
+      --crimson: #E11D48;
+      --neon: #FF2E63;
+      --grad: linear-gradient(135deg, #FF2E63 0%, #E11D48 100%);
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      width: 340px;
+      padding: 16px;
+      background:
+        radial-gradient(120% 70% at 100% 0%, rgba(225, 29, 72, 0.16), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      font: 12px/1.4 "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    header img { width: 40px; height: 40px; border-radius: 11px; box-shadow: 0 10px 24px -8px rgba(225, 29, 72, 0.45); }
+    header h1 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
+    header p { margin: 1px 0 0; font-size: 11px; color: var(--muted); font-style: italic; }
+
+    .card {
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: var(--glass);
+      backdrop-filter: blur(16px);
+    }
+    .card + .card { margin-top: 10px; }
+
+    .status { display: flex; align-items: center; gap: 12px; }
+    .status-icon {
+      width: 40px; height: 40px; flex: 0 0 auto;
+      display: grid; place-items: center;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+    .status-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    body[data-device="dualsense"] .status-icon,
+    body[data-device="xbox"] .status-icon,
+    body[data-device="gamepad"] .status-icon { background: var(--grad); color: #fff; border-color: transparent; }
+    .status-text { flex: 1; min-width: 0; }
+    .status-text b { display: block; font-size: 13px; font-weight: 650; }
+    .status-text span { font-size: 11px; color: var(--muted); }
+    .live { text-align: right; font-variant-numeric: tabular-nums; }
+    .live b { display: block; font-size: 18px; font-weight: 700; letter-spacing: -0.03em; }
+    .live span { font-size: 10px; color: var(--dim); }
+
+    .cta {
+      margin-top: 12px;
+      width: 100%;
+      height: 40px;
+      border: 0;
+      border-radius: 12px;
+      background: var(--grad);
+      color: #fff;
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 650;
+      cursor: pointer;
+      box-shadow: 0 10px 24px -10px rgba(255, 46, 99, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      transition: transform 0.2s var(--ease), filter 0.2s var(--ease);
+    }
+    .cta:hover { filter: brightness(1.08); }
+    .cta:active { transform: scale(0.98); }
+    .cta:focus-visible { outline: 2px solid rgba(255, 46, 99, 0.7); outline-offset: 2px; }
+    body[data-on="true"] .cta { background: rgba(255, 255, 255, 0.08); box-shadow: inset 0 0 0 1px var(--line-strong); }
+    .cta:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field + .field { margin-top: 14px; }
+    .field-top { display: flex; justify-content: space-between; color: var(--muted); font-size: 11.5px; }
+    .field-top b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .ends { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); margin-top: -2px; }
+    input[type="range"] {
+      --p: 50%;
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 16px; margin: 0; background: transparent; cursor: pointer;
+    }
+    input[type="range"]:focus { outline: none; }
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 4px; border-radius: 999px;
+      background: linear-gradient(90deg, #E11D48, #FF2E63) 0 0 / var(--p) 100% no-repeat, rgba(255, 255, 255, 0.1);
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 14px; height: 14px; margin-top: -5px; border-radius: 50%;
+      background: #fff; box-shadow: 0 0 0 4px rgba(255, 46, 99, 0.22), 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+    input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 6px rgba(255, 46, 99, 0.35); }
+
+    .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 11px; color: var(--muted); }
+    .keys kbd {
+      justify-self: start;
+      font: inherit; font-size: 10px; font-weight: 650;
+      padding: 1px 6px; border-radius: 5px;
+      background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line-strong); color: var(--text);
+    }
+    .section-title { margin: 0 0 10px; font-size: 10px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+
+    footer { margin-top: 12px; display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); }
+  </style>
+</head>
+<body data-device="none" data-on="false">
+  <header>
+    <img src="assets/logo.svg" alt="">
+    <div>
+      <h1>ScanController</h1>
+      <p>Analog Precision for Manga &amp; Webtoons</p>
+    </div>
+  </header>
+
+  <section class="card">
+    <div class="status">
+      <div class="status-icon" id="statusIcon"></div>
+      <div class="status-text">
+        <b id="statusTitle">Connexion…</b>
+        <span id="statusSub">&nbsp;</span>
+      </div>
+      <div class="live"><b id="liveSpeed">–</b><span>px/s</span></div>
+    </div>
+    <button class="cta" id="toggle" type="button" disabled>Lancer l’auto-scroll</button>
+  </section>
+
+  <section class="card">
+    <label class="field">
+      <span class="field-top"><span>Vitesse de croisière</span><b id="v-cruiseSpeed"></b></span>
+      <input type="range" id="cruiseSpeed" min="20" max="600" step="5">
+    </label>
+    <label class="field">
+      <span class="field-top"><span>Courbe de freinage</span><b id="v-softness"></b></span>
+      <input type="range" id="softness" min="0" max="100" step="1">
+      <span class="ends"><span>Vive</span><span>Soyeuse</span></span>
+    </label>
+    <label class="field">
+      <span class="field-top"><span>Sensibilité gâchette</span><b id="v-sensitivity"></b></span>
+      <input type="range" id="sensitivity" min="0" max="100" step="1">
+      <span class="ends"><span>Ferme</span><span>Réactive</span></span>
+    </label>
+  </section>
+
+  <section class="card">
+    <p class="section-title">Commandes</p>
+    <div class="keys" id="keys"></div>
+  </section>
+
+  <footer><span id="version"></span><span>Alt + S · ON / OFF</span></footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

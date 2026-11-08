@@ -1,0 +1,435 @@
+/* ScanController — HUD "Floating Pill".
+ * Charge dans le Shadow DOM du content script : totalement isole des styles de la page.
+ */
+
+:host { all: initial; }
+
+.sc-root {
+  --sc-bg: #09090B;
+  --sc-glass: rgba(18, 18, 23, 0.78);
+  --sc-glass-strong: rgba(18, 18, 23, 0.9);
+  --sc-line: rgba(255, 255, 255, 0.08);
+  --sc-line-strong: rgba(255, 255, 255, 0.14);
+  --sc-text: #F4F4F5;
+  --sc-muted: #A1A1AA;
+  --sc-dim: #71717A;
+  --sc-crimson: #E11D48;
+  --sc-neon: #FF2E63;
+  --sc-grad: linear-gradient(135deg, #FF2E63 0%, #E11D48 100%);
+  --sc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--sc-text);
+  -webkit-font-smoothing: antialiased;
+  text-align: left;
+}
+
+.sc-root *, .sc-root *::before, .sc-root *::after { box-sizing: border-box; }
+.sc-root svg { display: block; }
+.sc-root button { font: inherit; color: inherit; margin: 0; }
+
+/* ================================================================== */
+/* Toast                                                              */
+/* ================================================================== */
+.sc-toast {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: max-content;
+  max-width: 300px;
+  padding: 10px 16px 10px 10px;
+  border-radius: 16px;
+  background: var(--sc-glass-strong);
+  border: 1px solid var(--sc-line);
+  box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  opacity: 0;
+  transform: translateY(10px) scale(0.96);
+  transition: opacity 0.35s var(--sc-ease), transform 0.45s var(--sc-ease);
+  pointer-events: none;
+}
+.sc-toast[data-show="true"] { opacity: 1; transform: none; }
+.sc-root:has(.sc-dock:hover) .sc-toast,
+.sc-root:has(.sc-dock[data-open]) .sc-toast { opacity: 0; transform: translateY(10px) scale(0.96); }
+
+.sc-toast-icon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--sc-grad);
+  color: #fff;
+  box-shadow: 0 6px 18px -4px rgba(255, 46, 99, 0.55);
+}
+.sc-toast-icon svg { width: 20px; height: 20px; }
+.sc-toast-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.sc-toast-title { font-size: 12.5px; font-weight: 650; letter-spacing: -0.005em; }
+.sc-toast-sub { font-size: 11px; color: var(--sc-muted); }
+
+/* ================================================================== */
+/* Dock = pilule + panneau                                            */
+/* ================================================================== */
+.sc-dock {
+  position: relative;
+  pointer-events: auto;
+}
+
+/* ---------- Pilule compacte ---------- */
+.sc-pill {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 40px;
+  padding: 0 14px 0 4px;
+  border-radius: 999px;
+  border: 1px solid var(--sc-line);
+  background: var(--sc-glass);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  opacity: 0.86;
+  transition: opacity 0.3s var(--sc-ease), border-color 0.3s var(--sc-ease), box-shadow 0.3s var(--sc-ease), transform 0.3s var(--sc-ease);
+}
+.sc-dock:hover .sc-pill,
+.sc-pill:focus-visible { opacity: 1; }
+.sc-pill:active { transform: scale(0.97); }
+.sc-pill:focus-visible { outline: 2px solid rgba(255, 46, 99, 0.6); outline-offset: 2px; }
+.sc-root[data-on="true"] .sc-pill { border-color: rgba(225, 29, 72, 0.32); opacity: 1; }
+.sc-root[data-braking="true"] .sc-pill {
+  border-color: rgba(255, 46, 99, 0.6);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.65), 0 0 0 4px rgba(225, 29, 72, 0.12), 0 0 28px -4px rgba(255, 46, 99, 0.45);
+}
+
+.sc-gauge {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+}
+.sc-arc { position: absolute; inset: 0; width: 32px; height: 32px; }
+.sc-arc-track { fill: rgba(255, 255, 255, 0.03); stroke: rgba(255, 255, 255, 0.09); stroke-width: 2.4; }
+.sc-arc-fill {
+  fill: none;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px rgba(255, 46, 99, 0.7));
+}
+.sc-dev-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--sc-muted);
+  transition: color 0.3s var(--sc-ease);
+}
+.sc-root[data-on="true"] .sc-dev-icon { color: var(--sc-text); }
+.sc-root[data-braking="true"] .sc-dev-icon { color: var(--sc-neon); }
+
+.sc-dev-icon svg, .sc-chip-icon svg, .sc-toast-icon svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sc-dev-icon svg { width: 17px; height: 17px; }
+
+.sc-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  min-width: 52px;
+  font-variant-numeric: tabular-nums;
+}
+.sc-speed {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--sc-text);
+  transition: color 0.25s var(--sc-ease);
+}
+.sc-readout small { font-size: 10px; font-weight: 500; color: var(--sc-dim); }
+.sc-root[data-on="false"] .sc-speed { color: var(--sc-dim); }
+.sc-root[data-braking="true"] .sc-speed { color: #FFD1DC; }
+
+/* point lumineux d'etat */
+.sc-dot {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3F3F46;
+  flex: 0 0 auto;
+  transition: background 0.3s var(--sc-ease), box-shadow 0.3s var(--sc-ease);
+}
+.sc-root[data-on="true"] .sc-dot {
+  background: var(--sc-neon);
+  box-shadow: 0 0 0 3px rgba(255, 46, 99, 0.16), 0 0 10px rgba(255, 46, 99, 0.85);
+  animation: sc-breathe 2.4s ease-in-out infinite;
+}
+.sc-root[data-boosting="true"] .sc-dot {
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16), 0 0 12px rgba(255, 255, 255, 0.9);
+}
+@keyframes sc-breathe {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(255, 46, 99, 0.16), 0 0 10px rgba(255, 46, 99, 0.85); }
+  50%      { box-shadow: 0 0 0 5px rgba(255, 46, 99, 0.06), 0 0 16px rgba(255, 46, 99, 0.55); }
+}
+
+/* ---------- Panneau deplie ---------- */
+.sc-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  width: 276px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 22px;
+  border: 1px solid var(--sc-line);
+  background: var(--sc-glass);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transform-origin: 100% 100%;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px) scale(0.96);
+  pointer-events: none;
+  transition: opacity 0.28s var(--sc-ease), transform 0.4s var(--sc-ease), visibility 0s linear 0.4s;
+}
+/* pont invisible entre la pilule et le panneau : le survol ne se perd pas dans l'espace */
+.sc-panel::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 12px;
+}
+.sc-dock:hover .sc-panel,
+.sc-dock[data-holding] .sc-panel,
+.sc-dock[data-open] .sc-panel,
+.sc-dock:has(:focus-visible) .sc-panel {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  pointer-events: auto;
+  transition: opacity 0.28s var(--sc-ease), transform 0.45s var(--sc-ease), visibility 0s;
+}
+
+.sc-head { display: flex; align-items: center; gap: 10px; }
+.sc-logo {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #1C1C22, #0E0E11);
+  border: 1px solid var(--sc-line);
+  display: grid;
+  place-items: center;
+}
+.sc-logo svg { width: 24px; height: 24px; }
+.sc-brand { display: flex; flex-direction: column; min-width: 0; }
+.sc-brand b { font-size: 13px; font-weight: 650; letter-spacing: -0.015em; }
+.sc-brand small { font-size: 10px; color: var(--sc-dim); letter-spacing: 0.02em; }
+
+.sc-chip {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 9px 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--sc-line);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--sc-muted);
+  white-space: nowrap;
+}
+.sc-chip-icon { display: grid; place-items: center; color: var(--sc-neon); }
+.sc-chip-icon svg { width: 15px; height: 15px; }
+
+/* ---------- Toggle ---------- */
+.sc-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--sc-line);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.25s var(--sc-ease), border-color 0.25s var(--sc-ease);
+}
+.sc-toggle:hover { background: rgba(255, 255, 255, 0.06); }
+.sc-toggle:focus-visible { outline: 2px solid rgba(255, 46, 99, 0.6); outline-offset: 2px; }
+.sc-toggle[aria-pressed="true"] { border-color: rgba(225, 29, 72, 0.3); background: rgba(225, 29, 72, 0.08); }
+.sc-toggle-text { display: flex; flex-direction: column; gap: 1px; }
+.sc-toggle-title { font-size: 12.5px; font-weight: 600; }
+.sc-toggle-sub { font-size: 10.5px; color: var(--sc-muted); font-variant-numeric: tabular-nums; }
+
+.sc-switch {
+  position: relative;
+  width: 36px;
+  height: 21px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  transition: background 0.3s var(--sc-ease), box-shadow 0.3s var(--sc-ease);
+}
+.sc-switch > i {
+  position: absolute;
+  top: 2.5px;
+  left: 2.5px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.35s var(--sc-ease);
+}
+.sc-toggle[aria-pressed="true"] .sc-switch { background: var(--sc-grad); box-shadow: 0 0 14px -2px rgba(255, 46, 99, 0.6); }
+.sc-toggle[aria-pressed="true"] .sc-switch > i { transform: translateX(15px); }
+
+/* ---------- Sliders ---------- */
+.sc-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; cursor: default; }
+.sc-field-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  color: var(--sc-muted);
+}
+.sc-val { font-size: 11px; font-weight: 600; color: var(--sc-text); font-variant-numeric: tabular-nums; }
+.sc-field-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -2px;
+  font-size: 9.5px;
+  color: var(--sc-dim);
+  letter-spacing: 0.02em;
+}
+
+.sc-range {
+  --p: 50%;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.sc-range:focus { outline: none; }
+.sc-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, #E11D48, #FF2E63) 0 0 / var(--p) 100% no-repeat,
+    rgba(255, 255, 255, 0.1);
+}
+.sc-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(255, 46, 99, 0.22), 0 2px 8px rgba(0, 0, 0, 0.5);
+  transition: box-shadow 0.2s var(--sc-ease), transform 0.2s var(--sc-ease);
+}
+.sc-range:hover::-webkit-slider-thumb,
+.sc-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 6px rgba(255, 46, 99, 0.3), 0 2px 8px rgba(0, 0, 0, 0.5); }
+.sc-range:active::-webkit-slider-thumb { transform: scale(1.12); }
+.sc-range::-moz-range-track { height: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); }
+.sc-range::-moz-range-progress { height: 4px; border-radius: 999px; background: linear-gradient(90deg, #E11D48, #FF2E63); }
+.sc-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(255, 46, 99, 0.22);
+}
+
+/* ---------- Sensibilite + courbe ---------- */
+.sc-sens {
+  display: grid;
+  grid-template-columns: 1fr 52px;
+  gap: 12px;
+  align-items: end;
+}
+.sc-curve {
+  width: 52px;
+  height: 36px;
+  padding: 2px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--sc-line);
+  overflow: visible;
+}
+.sc-curve-grid { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 1; }
+.sc-curve-line { fill: none; stroke: var(--sc-neon); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.sc-curve-dot { fill: #fff; filter: drop-shadow(0 0 3px rgba(255, 46, 99, 0.9)); }
+
+/* ---------- Commandes ---------- */
+.sc-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  padding-top: 11px;
+  border-top: 1px solid var(--sc-line);
+  font-size: 10px;
+  color: var(--sc-dim);
+}
+.sc-keys span { display: inline-flex; align-items: center; gap: 5px; }
+.sc-keys kbd {
+  font: inherit;
+  font-size: 9.5px;
+  font-weight: 650;
+  min-width: 18px;
+  text-align: center;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--sc-line-strong);
+  color: var(--sc-text);
+}
+
+.sc-wake {
+  display: none;
+  margin-top: -4px;
+  font-size: 10px;
+  color: var(--sc-dim);
+}
+.sc-root[data-device="keyboard"] .sc-wake { display: block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-root *, .sc-root *::before, .sc-root *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}

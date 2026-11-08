@@ -1,0 +1,19 @@
+# Build output (the ZIP is published as a GitHub Release asset, not committed)
+dist/
+
+# Launch videos and render work files (hundreds of MB)
+brag-output/
+brag-output-*/
+.brag-current
+
+# Local agent skills and their bundled media
+.agents/
+skills-lock.json
+
+# Media we don't redistribute: manga panels and soundtracks
+assets/*.mp3
+assets/*.webp
+
+# OS / editor noise
+.DS_Store
+Thumbs.db

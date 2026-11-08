@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="ScanController">
+  <defs>
+    <linearGradient id="sc-crimson" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF2E63"/>
+      <stop offset="1" stop-color="#E11D48"/>
+    </linearGradient>
+    <linearGradient id="sc-tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#18181D"/>
+      <stop offset="1" stop-color="#09090B"/>
+    </linearGradient>
+  </defs>
+  <!-- tile -->
+  <rect x="1" y="1" width="62" height="62" rx="15" fill="url(#sc-tile)"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="14.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.08"/>
+  <!-- manga page: three panels with a diagonal gutter -->
+  <g fill="none" stroke="#F4F4F5" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="12" y="11" width="27" height="38" rx="3.5"/>
+    <path d="M12 25.5H39"/>
+    <path d="M28 25.5L23 49"/>
+  </g>
+  <!-- analog trigger (R2) wrapping the page corner -->
+  <path d="M34 27.5h13.5c3.6 0 6.5 2.9 6.5 6.5v3.5c0 9.4-7.6 17-17 17h-.6c-2.7 0-4.4-2.8-3.2-5.2 1.6-3.1 2.4-6.6 2.4-10.3 0-2.6-.5-5-1.4-7.2C33.4 30 33.3 27.5 34 27.5z"
+        fill="url(#sc-crimson)" stroke="#09090B" stroke-width="3" paint-order="stroke"/>
+  <!-- travel arc: the pressure indicator -->
+  <path d="M38.5 31.5h8.8c2.2 0 3.7 1.6 3.7 3.7" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-opacity="0.55"/>
+</svg>

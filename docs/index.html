@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08080A">
+  <title>ScanController</title>
+  <meta name="description" content="Contrôle analogique à la manette PS5/Xbox & Clavier pour lire tes scans sur Chrome.">
+  <meta property="og:title" content="ScanController">
+  <meta property="og:description" content="Contrôle analogique à la manette PS5/Xbox & Clavier pour lire tes scans sur Chrome.">
+  <meta property="og:image" content="icon-128.png">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #08080A;
+      --card: rgba(255, 255, 255, 0.04);
+      --card-hover: rgba(255, 255, 255, 0.07);
+      --line: rgba(255, 255, 255, 0.08);
+      --line-strong: rgba(255, 255, 255, 0.14);
+      --text: #F4F4F5;
+      --muted: #A1A1AA;
+      --dim: #8B8B94;
+      --crimson: #E11D48;
+      --neon: #FF2E63;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      background:
+        radial-gradient(70% 40% at 50% 0%, rgba(225, 29, 72, 0.16), transparent 70%),
+        radial-gradient(60% 30% at 50% 100%, rgba(226, 232, 240, 0.05), transparent 70%),
+        var(--bg);
+      background-attachment: fixed;
+      color: var(--text);
+      font: 16px/1.5 "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      max-width: 440px;
+      margin: 0 auto;
+      padding: calc(48px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* ---------- profil ---------- */
+    .profile { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px; }
+    .avatar {
+      width: 96px; height: 96px; border-radius: 26px;
+      box-shadow: 0 0 0 1px var(--line-strong), 0 24px 48px -16px rgba(225, 29, 72, 0.55);
+    }
+    .avatar svg { display: block; width: 100%; height: 100%; }
+    .name { display: inline-flex; align-items: center; gap: 7px; margin: 18px 0 0; font-size: 24px; font-weight: 700; letter-spacing: -0.03em; }
+    .verified { width: 20px; height: 20px; flex: 0 0 auto; }
+    .bio { margin: 8px 0 0; max-width: 340px; font-size: 15px; color: var(--muted); }
+    .chips { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+    .chip { height: 26px; padding: 0 10px; border-radius: 999px; display: inline-flex; align-items: center; font-size: 12px; font-weight: 500; color: var(--muted); background: var(--card); border: 1px solid var(--line); }
+
+    /* ---------- boutons ---------- */
+    .btn {
+      position: relative;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      min-height: 60px; padding: 14px 20px; border-radius: 18px;
+      font-size: 16px; font-weight: 600; letter-spacing: -0.01em; text-align: center;
+      background: var(--card); border: 1px solid var(--line);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      transition: transform 0.2s var(--ease), background 0.2s var(--ease), border-color 0.2s var(--ease), box-shadow 0.3s var(--ease);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:hover { background: var(--card-hover); border-color: var(--line-strong); }
+    .btn:active { transform: scale(0.98); }
+    .btn:focus-visible { outline: 2px solid var(--neon); outline-offset: 3px; }
+    .btn-primary {
+      min-height: 68px;
+      background: linear-gradient(135deg, #FF2E63 0%, #E11D48 100%);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 0 0 1px rgba(255, 46, 99, 0.35), 0 14px 40px -12px rgba(255, 46, 99, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    }
+    .btn-primary:hover { background: linear-gradient(135deg, #FF4373 0%, #E8264F 100%); box-shadow: 0 0 0 1px rgba(255, 46, 99, 0.45), 0 18px 50px -12px rgba(255, 46, 99, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.22); }
+    .btn-primary small { display: block; font-size: 12px; font-weight: 500; opacity: 0.85; margin-top: 2px; }
+    .btn-glyph { font-size: 18px; line-height: 1; }
+
+    /* ---------- note mobile ---------- */
+    .note {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 14px 16px; border-radius: 16px;
+      background: var(--card); border: 1px solid var(--line);
+      font-size: 13.5px; color: var(--muted);
+    }
+    .note svg { width: 20px; height: 20px; flex: 0 0 auto; margin-top: 1px; color: var(--text); }
+    .note b { color: var(--text); font-weight: 600; }
+    .copy {
+      margin-top: 8px; height: 32px; padding: 0 12px; border-radius: 10px;
+      font: 600 13px "Inter", sans-serif; color: var(--text); cursor: pointer;
+      background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line-strong);
+    }
+    .copy:focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
+
+    /* ---------- tuto ---------- */
+    details {
+      border-radius: 18px; background: var(--card); border: 1px solid var(--line);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      overflow: hidden;
+    }
+    summary {
+      list-style: none; cursor: pointer;
+      display: flex; align-items: center; gap: 12px;
+      padding: 18px 18px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
+      -webkit-tap-highlight-color: transparent;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary:focus-visible { outline: 2px solid var(--neon); outline-offset: -2px; border-radius: 18px; }
+    .chev { margin-left: auto; width: 18px; height: 18px; flex: 0 0 auto; color: var(--muted); transition: transform 0.3s var(--ease); }
+    details[open] .chev { transform: rotate(180deg); }
+    .steps { list-style: none; margin: 0; padding: 0 18px 18px; display: flex; flex-direction: column; gap: 10px; counter-reset: step; }
+    .step { display: flex; gap: 14px; align-items: flex-start; padding: 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line); }
+    .step-num {
+      counter-increment: step; flex: 0 0 auto;
+      width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center;
+      font-size: 14px; font-weight: 700; color: #fff;
+      background: linear-gradient(135deg, #FF2E63 0%, #E11D48 100%);
+    }
+    .step-num::before { content: counter(step); }
+    .step p { margin: 4px 0 0; font-size: 14.5px; color: var(--muted); }
+    .step p b { color: var(--text); font-weight: 600; }
+    code {
+      font: 500 13px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      padding: 2px 6px; border-radius: 6px; color: var(--text);
+      background: rgba(255, 255, 255, 0.07); border: 1px solid var(--line);
+      word-break: break-all;
+    }
+    .browsers { padding: 0 18px 18px; font-size: 12.5px; color: var(--dim); line-height: 2; }
+    .browsers code { word-break: normal; white-space: nowrap; }
+
+    footer { margin-top: 18px; text-align: center; font-size: 12px; color: var(--dim); }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="profile">
+      <div class="avatar" aria-hidden="true">
+        <svg viewBox="0 0 64 64">
+          <defs>
+            <linearGradient id="g-crimson" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF2E63"/><stop offset="1" stop-color="#E11D48"/></linearGradient>
+            <linearGradient id="g-tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#18181D"/><stop offset="1" stop-color="#09090B"/></linearGradient>
+          </defs>
+          <rect x="0" y="0" width="64" height="64" rx="17" fill="url(#g-tile)"/>
+          <g fill="none" stroke="#F4F4F5" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+            <rect x="12" y="11" width="27" height="38" rx="3.5"/><path d="M12 25.5H39"/><path d="M28 25.5L23 49"/>
+          </g>
+          <path d="M34 27.5h13.5c3.6 0 6.5 2.9 6.5 6.5v3.5c0 9.4-7.6 17-17 17h-.6c-2.7 0-4.4-2.8-3.2-5.2 1.6-3.1 2.4-6.6 2.4-10.3 0-2.6-.5-5-1.4-7.2C33.4 30 33.3 27.5 34 27.5z" fill="url(#g-crimson)" stroke="#09090B" stroke-width="3" paint-order="stroke"/>
+          <path d="M38.5 31.5h8.8c2.2 0 3.7 1.6 3.7 3.7" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-opacity="0.55"/>
+        </svg>
+      </div>
+      <h1 class="name">
+        ScanController
+        <svg class="verified" viewBox="0 0 24 24" role="img" aria-label="Vérifié">
+          <path d="M12 2.2l2.3 1.7 2.8-.2 1 2.6 2.4 1.5-.6 2.8 1 2.7-2.1 1.9-.4 2.8-2.8.5-1.8 2.2-2.6-1-2.7.9-1.8-2.2-2.8-.6-.3-2.8-2-2 1.1-2.6-.5-2.8 2.4-1.5 1.1-2.6 2.8.3z" fill="#F4F4F5"/>
+          <path d="M8.2 12.3l2.5 2.5 5.1-5.3" fill="none" stroke="#08080A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </h1>
+      <p class="bio">Contrôle analogique à la manette PS5/Xbox &amp; Clavier pour lire tes scans sur Chrome.</p>
+      <div class="chips" aria-label="Compatibilité">
+        <span class="chip">DualSense</span><span class="chip">Xbox</span><span class="chip">Clavier</span><span class="chip">Chrome · Brave · Opera</span>
+      </div>
+    </header>
+
+    <a class="btn btn-primary" id="dl" data-gh="release"
+       href="https://github.com/YOUR_GITHUB_USER/ScanController/releases/latest/download/ScanController-v1.0.zip">
+      <span class="btn-glyph" aria-hidden="true">⬇</span>
+      <span>Télécharger ScanController v1.0 (.ZIP)<small>Gratuit · 32 Ko · sans compte</small></span>
+    </a>
+
+    <a class="btn" id="src" data-gh="repo" href="https://github.com/YOUR_GITHUB_USER/ScanController" target="_blank" rel="noopener">
+      <span class="btn-glyph" aria-hidden="true">⭐</span>
+      <span>Voir le code source sur GitHub</span>
+    </a>
+
+    <details open>
+      <summary>
+        Comment l’installer en 15 secondes sur Chrome / Brave / Opera ?
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </summary>
+      <ol class="steps">
+        <li class="step"><span class="step-num" aria-hidden="true"></span>
+          <div><b>Décompresse le fichier</b><p><code>ScanController-v1.0.zip</code></p></div>
+        </li>
+        <li class="step"><span class="step-num" aria-hidden="true"></span>
+          <div><b>Ouvre les extensions</b>
+            <p>Tape <code>chrome://extensions</code> dans la barre d’adresse et active <b>« Mode développeur »</b> en haut à droite.</p>
+            <button class="copy" type="button" data-copy="chrome://extensions">Copier l’adresse</button>
+          </div>
+        </li>
+        <li class="step"><span class="step-num" aria-hidden="true"></span>
+          <div><b>Charge l’extension</b><p>Clique sur <b>« Charger l’extension non empaquetée »</b> et sélectionne le dossier <code>ScanController</code>.</p></div>
+        </li>
+      </ol>
+      <p class="browsers">Brave : <code>brave://extensions</code> · Opera : <code>opera://extensions</code></p>
+    </details>
+
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      <div>
+        <b>Extension pour ordinateur.</b> Chrome sur téléphone n’accepte pas les extensions : ouvre ce lien sur ton PC ou ton Mac.
+        <br><button class="copy" type="button" id="copy-page">Copier le lien de cette page</button>
+      </div>
+    </div>
+
+    <footer>ScanController · Analog Precision for Manga &amp; Webtoons</footer>
+  </main>
+
+  <script>
+    (() => {
+      // Sur GitHub Pages (<user>.github.io/ScanController/), les liens pointent automatiquement vers ton compte.
+      const host = location.hostname;
+      if (/\.github\.io$/i.test(host)) {
+        const user = host.split('.')[0];
+        const repo = 'https://github.com/' + user + '/ScanController';
+        document.getElementById('src').href = repo;
+        document.getElementById('dl').href = repo + '/releases/latest/download/ScanController-v1.0.zip';
+      }
+
+      function copy(text, btn) {
+        const done = () => { const t = btn.textContent; btn.textContent = 'Copié ✓'; setTimeout(() => { btn.textContent = t; }, 1600); };
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(done, () => fallback(text, done));
+        } else fallback(text, done);
+      }
+      function fallback(text, done) {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) { /* rien */ }
+        ta.remove();
+      }
+      document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => copy(b.dataset.copy, b)));
+      document.getElementById('copy-page').addEventListener('click', (e) => copy(location.href, e.currentTarget));
+    })();
+  </script>
+</body>
+</html>
